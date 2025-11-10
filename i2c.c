@@ -17,11 +17,27 @@ void i2c_init(struct i2c* i2c, uint32_t i2c_pins, uint8_t i2c_port) {
 
 
 	i2c->CR2 |= 0x10 /* 16 MHz frequency */
-	i2c->CR1 |= (BIT(0));
+	i2c->CR1 |= PE;
 
 }
 
-void i2c_transmit(struct i2c* i2c, uint8_t addr, uint8_t val)
+void i2c_transmit(struct i2c* i2c, uint8_t addr, uint8_t* tx_buf, size_t tx_len) {
+	i2c->CR1 &= ~(POS);
+	i2c->SR1 |= SB; /* Generate start */
+
+	i2c->DR = (uint32_t) ((addr << 1) | 1);
+	while (!(i2c->SR1 & I2C_ADDR_RX));
+
+	(void)i2c->SR1;
+	(void)i2c->SR2; /* Read both SR registers to set to 0 */
+	
+	while(tx_len--) {
+		i2c->DR = (uint32_t) *val++;
+		while (!(i2c->SR1 & I2C_TXE_FLAG));
+	}
+
+	i2c->CR1 |= STOP;
+}
 
 void i2c1_init(void) {
 	struct i2c* i2c1 = I2C1;

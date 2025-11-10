@@ -16,6 +16,7 @@
 /* CR1 Registers */
 #define SWRST (BIT(15))
 #define ALERT (BIT(13))
+#define POS (BIT(11))
 #define ACK (BIT(10))
 #define STOP (BIT(9))
 #define START (BIT(8))
@@ -40,17 +41,17 @@
 #define ENDUAL (BIT(0))
 
 /* SR1 Registers */
-#define TxE (BIT(7))
-#define RxNE (BIT(6))
+#define I2C_TXE_FLAG (BIT(7))
+#define I2C_RXE_FLAG (BIT(6))
 #define STOPF (BIT(4))
 #define ADD10 (BIT(3))
 #define BTF (BIT(2))
-#define ADDR (BIT(1))
+#define I2C_ADDR_RX (BIT(1))
 #define SB (BIT(0))
 
 /* SR2 Registers */
 #define DUALF (BIT(7))
-#define TRA (BIT(2))
+#define I2C_TRA_FLAG (BIT(2))
 #define BUSY (BIT(1))
 #define MSL (BIT(0))
 
