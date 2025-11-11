@@ -62,7 +62,7 @@
 /* FLTR Registers */
 #define ANOFF (BIT(4))
 
-
+extern struct i2c* i2c1;
 
 struct i2c {
 	volatile uint32_t CR1, CR2, OAR1, OAR2, DR, SR1, SR2,
@@ -71,7 +71,7 @@ struct i2c {
 
 
 void i2c_init(struct i2c* i2c, uint32_t i2c_pins, uint8_t i2c_port);
-void i2c_transmit(struct i2c* i2c, uint8_t addr, uint8_t val);
+void i2c_transmit(struct i2c* i2c, uint8_t addr, uint8_t* val, size_t tx_len);
 void i2c1_init(void);
 
 

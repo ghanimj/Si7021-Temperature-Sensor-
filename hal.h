@@ -18,6 +18,7 @@
 
 #define GPIO_PIN_SET 1
 #define GPIO_PIN_RESET 0
+#define GPIO_MODE_AF_OD (GPIO_MODE_AF | 0x40)
 
 struct gpio {
 	volatile uint32_t MODER, OTYPER, OSPEEDR, PUPDR, IDR, ODR, BSRR, LCKR,
@@ -38,6 +39,7 @@ static inline void gpio_set_mode(uint32_t pin, uint8_t MODE, uint8_t port) {
 		uint32_t curr_pin = pin & bit_pos;
 
 		if (curr_pin) {
+			if (MODE & 0x40) gpio->OTYPER |= (1U << pin_pos);
 			gpio->MODER &= ~(3U << (pin_pos * 2));
 			gpio->MODER |= (MODE & 3U) << (pin_pos * 2);
 		}
