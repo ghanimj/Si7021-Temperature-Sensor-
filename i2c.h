@@ -52,7 +52,7 @@
 /* SR2 Registers */
 #define DUALF (BIT(7))
 #define I2C_TRA_FLAG (BIT(2))
-#define BUSY (BIT(1))
+#define I2C_BUS_BUSY (BIT(1))
 #define MSL (BIT(0))
 
 /* CCR Registers */
@@ -72,6 +72,8 @@ struct i2c {
 
 void i2c_init(struct i2c* i2c, uint32_t i2c_pins, uint8_t i2c_port);
 void i2c_transmit(struct i2c* i2c, uint8_t addr, uint8_t* val, size_t tx_len);
+void i2c_receive(struct i2c* i2c, uint8_t addr, uint8_t* rx_buf, size_t rx_bytes);
+void i2c_write_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, uint8_t* rx_buf, size_t rx_bytes);
 void i2c1_init(void);
 
 

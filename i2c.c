@@ -28,6 +28,8 @@ void i2c_init(struct i2c* i2c, uint32_t i2c_pins, uint8_t i2c_port) {
 }
 
 void i2c_transmit(struct i2c* i2c, uint8_t addr, uint8_t* tx_buf, size_t tx_len) {
+	while(i2c->SR2 & I2C_BUS_BUSY);
+
 	i2c->CR1 |= START; /* Generate start */
 	while (!(i2c->SR1 & I2C_SB_FLAG));
 
@@ -35,7 +37,6 @@ void i2c_transmit(struct i2c* i2c, uint8_t addr, uint8_t* tx_buf, size_t tx_len)
 
 	while (!(i2c->SR1 & I2C_ADDR_RX));
 
-	uart_write_buf(uart2, "stop\r\n", 6);
 	(void)i2c->SR1;
 	(void)i2c->SR2; /* Read both SR registers to set to 0 */
 	
@@ -47,6 +48,49 @@ void i2c_transmit(struct i2c* i2c, uint8_t addr, uint8_t* tx_buf, size_t tx_len)
 
 	i2c->CR1 |= STOP;
 }
+
+void i2c_receive(struct i2c* i2c, uint8_t addr, uint8_t* rx_buf, size_t rx_bytes) {
+	while(i2c->SR2 & I2C_BUS_BUSY);
+
+	i2c->CR1 |= START;
+	while (!(i2c->SR1 & I2C_SB_FLAG));
+
+	i2c->DR = (uint32_t) ((addr << 1) | 1);
+	i2c->CR1 &= ~(ACK);
+
+	while (!(i2c->SR1 & I2C_ADDR_RX));
+	
+	(void)i2c->SR1;
+	(void)i2c->SR2; /* Read both SR registers to set to 0 */
+	
+	size_t len = rx_bytes;
+	while(len--) {
+		while(!(i2c->SR1 & I2C_RXE_FLAG));
+		rx_buf[len] = (uint8_t) i2c->DR;
+	}
+
+	i2c->CR1 |= STOP;
+}
+
+void i2c_write_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, uint8_t* rx_buf, size_t rx_bytes) {
+	i2c->CR1 |= START;
+	while (!(i2c->SR1 & I2C_SB_FLAG));
+
+	i2c->DR = (uint32_t) ((addr << 1) | 0);
+
+	(void)i2c->SR1;
+	(void)i2c->SR2; /* Read both SR registers to set to 0 */
+	
+	size_t len = cmd_len;
+	while(len--) {
+		while(!(i2c->SR1 & I2C_TXE_FLAG));
+		i2c->DR = (uint32_t) *cmd++;
+	}
+
+	i2c->CR1 |= STOP;
+}
+
+
 
 void i2c1_init(void) {
 	uint8_t i2c1_port = I2C1_PORT;
