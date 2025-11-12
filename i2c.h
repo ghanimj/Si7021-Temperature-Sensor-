@@ -14,7 +14,7 @@
 #define I2C1_SCL (PIN_NUM(8))
 
 /* CR1 Registers */
-#define SWRST (BIT(15))
+#define I2C_CR1_SWRST (BIT(15))
 #define ALERT (BIT(13))
 #define POS (BIT(11))
 #define I2C_SET_ACK (BIT(10))
@@ -45,7 +45,7 @@
 #define I2C_RXNE_FLAG (BIT(6))
 #define STOPF (BIT(4))
 #define ADD10 (BIT(3))
-#define BTF (BIT(2))
+#define I2C_BTF_FLAG (BIT(2))
 #define I2C_ADDR_RX (BIT(1))
 #define I2C_SB_FLAG (BIT(0))
 

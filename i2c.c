@@ -10,6 +10,12 @@ void i2c_init(struct i2c* i2c, uint32_t i2c_pins, uint8_t i2c_port) {
 	uint8_t i2c_af = 4;
 
 	if (i2c == I2C1) RCC->APB1ENR |= BIT(21);
+	/* As per device errata reference, for some peripherals
+	 * a delay is needed to stall the arm cpu pipeline until
+	 * critical instructions have been executed, as in this case
+	 * for i2c, a few us delay is needed.
+	 */
+	for(volatile int i = 0; i < 500; i++) (void)0;
 
 	gpio_set_mode(i2c_pins, GPIO_MODE_AF_OD, i2c_port);
 	gpio_set_speed(i2c_pins, HIGH_SPEED, i2c_port);
@@ -79,6 +85,7 @@ void i2c_reg_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, u
 	 */
 	while(i2c->SR2 & I2C_BUS_BUSY); /* Bus busy? */
 
+	i2c->CR1 |= I2C_SET_ACK;	
 	i2c->CR1 |= START;
 	while (!(i2c->SR1 & I2C_SB_FLAG));
 
@@ -95,12 +102,12 @@ void i2c_reg_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, u
 		i2c->DR = (uint32_t) *cmd++;
 	}
 
+	while(!(i2c->SR1 & I2C_TXE_FLAG));
+
 	/* Restart, prepare a read */
-	uart_write_buf(uart2, "stop\r\n", 6);
 	i2c->CR1 |= START;
 	while (!(i2c->SR1 & I2C_SB_FLAG));
 
-	i2c->CR1 |= I2C_SET_ACK;	
 	i2c->DR = (uint32_t) ((addr << 1) | 1);
 	while (!(i2c->SR1 & I2C_ADDR_RX)); /* Send and wait for addr to be received */
 
