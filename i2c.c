@@ -56,7 +56,7 @@ void i2c_receive(struct i2c* i2c, uint8_t addr, uint8_t* rx_buf, size_t rx_bytes
 	while (!(i2c->SR1 & I2C_SB_FLAG));
 
 	i2c->DR = (uint32_t) ((addr << 1) | 1);
-	i2c->CR1 &= ~(ACK);
+	i2c->CR1 &= ~(I2C_SET_ACK);
 
 	while (!(i2c->SR1 & I2C_ADDR_RX));
 	
@@ -65,27 +65,55 @@ void i2c_receive(struct i2c* i2c, uint8_t addr, uint8_t* rx_buf, size_t rx_bytes
 	
 	size_t len = rx_bytes;
 	while(len--) {
-		while(!(i2c->SR1 & I2C_RXE_FLAG));
+		while(!(i2c->SR1 & I2C_RXNE_FLAG));
 		rx_buf[len] = (uint8_t) i2c->DR;
 	}
 
 	i2c->CR1 |= STOP;
 }
 
-void i2c_write_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, uint8_t* rx_buf, size_t rx_bytes) {
+void i2c_reg_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, uint8_t* rx_buf, size_t rx_bytes) {
+	/* Set ACK, set START, send slave addr, send
+	 * cmd addr, set (RE)START, send slave addr again,
+	 * ready to read
+	 */
+	while(i2c->SR2 & I2C_BUS_BUSY); /* Bus busy? */
+
 	i2c->CR1 |= START;
 	while (!(i2c->SR1 & I2C_SB_FLAG));
 
 	i2c->DR = (uint32_t) ((addr << 1) | 0);
+	while (!(i2c->SR1 & I2C_ADDR_RX)); /* Send and wait for addr to be received */
 
 	(void)i2c->SR1;
 	(void)i2c->SR2; /* Read both SR registers to set to 0 */
 	
+	/* Write command to receiver */
 	size_t len = cmd_len;
 	while(len--) {
 		while(!(i2c->SR1 & I2C_TXE_FLAG));
 		i2c->DR = (uint32_t) *cmd++;
 	}
+
+	/* Restart, prepare a read */
+	uart_write_buf(uart2, "stop\r\n", 6);
+	i2c->CR1 |= START;
+	while (!(i2c->SR1 & I2C_SB_FLAG));
+
+	i2c->CR1 |= I2C_SET_ACK;	
+	i2c->DR = (uint32_t) ((addr << 1) | 1);
+	while (!(i2c->SR1 & I2C_ADDR_RX)); /* Send and wait for addr to be received */
+
+	(void)i2c->SR1;
+	(void)i2c->SR2; /* Read both SR registers to set to 0 */
+
+	if (rx_bytes == 1) {
+		i2c->CR1 &= ~(I2C_SET_ACK);	
+
+		while(i2c->SR1 & I2C_RXNE_FLAG);
+		*rx_buf = (uint8_t) i2c->DR;
+	}
+	/* We're just gonna handle 1 byte reception case for now */
 
 	i2c->CR1 |= STOP;
 }

@@ -17,7 +17,7 @@
 #define SWRST (BIT(15))
 #define ALERT (BIT(13))
 #define POS (BIT(11))
-#define ACK (BIT(10))
+#define I2C_SET_ACK (BIT(10))
 #define STOP (BIT(9))
 #define START (BIT(8))
 #define NOSTRETCH (BIT(7))
@@ -42,7 +42,7 @@
 
 /* SR1 Registers */
 #define I2C_TXE_FLAG (BIT(7))
-#define I2C_RXE_FLAG (BIT(6))
+#define I2C_RXNE_FLAG (BIT(6))
 #define STOPF (BIT(4))
 #define ADD10 (BIT(3))
 #define BTF (BIT(2))
@@ -73,7 +73,7 @@ struct i2c {
 void i2c_init(struct i2c* i2c, uint32_t i2c_pins, uint8_t i2c_port);
 void i2c_transmit(struct i2c* i2c, uint8_t addr, uint8_t* val, size_t tx_len);
 void i2c_receive(struct i2c* i2c, uint8_t addr, uint8_t* rx_buf, size_t rx_bytes);
-void i2c_write_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, uint8_t* rx_buf, size_t rx_bytes);
+void i2c_reg_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, uint8_t* rx_buf, size_t rx_bytes);
 void i2c1_init(void);
 
 
