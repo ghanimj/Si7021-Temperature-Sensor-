@@ -13,6 +13,7 @@
 #define FAIL 0
 
 uint8_t si7021_get_firmware(void);
-
+uint8_t si7021_read_temp(float* rx_buf);
+uint8_t si7021_read_humidity(float* rx_buf);
 
 #endif
