@@ -10,7 +10,7 @@ uint8_t si7021_get_firmware(void) {
 
 	i2c_reg_read(i2c1, SI7021_ADDR, reg_fw, reg_len, &firmware, 1);
 
-	return firmware == 0xFF || firmware == 0x20 ? PASS : FAIL;
+	return firmware;
 }
 
 uint8_t si7021_read_temp(float* rx_buf) {

@@ -6,6 +6,28 @@
 
 struct i2c* i2c1 = I2C1;
 
+static void i2c_unstick(uint8_t pin_port, uint16_t scl_pin, uint16_t sda_pin) {
+	/* This just resets slave if it gets stuck during a new flash/board reset */
+	gpio_set_mode(scl_pin | sda_pin, GPIO_MODE_AF_OD, pin_port);
+
+	gpio_write_pin(sda_pin, GPIO_PIN_SET, pin_port);
+
+	/* Send 9 clk pulses */
+	for (int i=0; i<9; i++) {
+		gpio_write_pin(scl_pin, GPIO_PIN_SET, pin_port);
+		for (volatile int d=0; d<100; d++);
+		gpio_write_pin(scl_pin, GPIO_PIN_SET, pin_port);
+		for (volatile int d=0; d<100; d++);
+	}
+
+	/* Send a stop */
+	gpio_write_pin(scl_pin, GPIO_PIN_SET, pin_port);
+	for (volatile int d=0; d<100; d++);
+	gpio_write_pin(sda_pin, GPIO_PIN_RESET, pin_port);
+	for (volatile int d=0; d<100; d++);
+	gpio_write_pin(sda_pin, GPIO_PIN_SET, pin_port);
+}
+
 void i2c_init(struct i2c* i2c, uint32_t i2c_pins, uint8_t i2c_port) {
 	uint8_t i2c_af = 4;
 
@@ -15,17 +37,18 @@ void i2c_init(struct i2c* i2c, uint32_t i2c_pins, uint8_t i2c_port) {
 	 * critical instructions have been executed, as in this case
 	 * for i2c, a few us delay is needed.
 	 */
-	for(volatile int i = 0; i < 500; i++) (void)0;
+	for (volatile int i = 0; i < 500; i++) (void)0;
+	i2c_unstick(i2c_port, I2C1_SCL, I2C1_SDA); /* Since it seems to get stuck often... */
 
 	gpio_set_mode(i2c_pins, GPIO_MODE_AF_OD, i2c_port);
 	gpio_set_speed(i2c_pins, HIGH_SPEED, i2c_port);
 	gpio_set_af(i2c_pins, i2c_af, i2c_port);
 
-	i2c->CR1 = 0, i2c->CR2 = 0;
-	i2c->CR2 |= 0x10; /* 16 MHz frequency */
+	i2c->CR1 &= ~PE;
+	i2c->CR1 |= I2C_CR1_SWRST;
+	i2c->CR1 &= ~I2C_CR1_SWRST;
 
-	i2c->OAR1 = 0, i2c->OAR2 = 0; 
-	
+	i2c->CR2 = 16; /* 16 MHz frequency */
 	i2c->CCR = 80; /* 80 = 100KHz standard freq */
 	i2c->TRISE = 17;/* 1000/(1/16MHz) + 1 */
 
@@ -83,9 +106,9 @@ void i2c_reg_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, u
 	 * cmd addr, set (RE)START, send slave addr again,
 	 * ready to read
 	 */
+	i2c->CR1 &= ~I2C_SET_POS;
 	while(i2c->SR2 & I2C_BUS_BUSY); /* Bus busy? */
 
-	i2c->CR1 |= I2C_SET_ACK;	
 	i2c->CR1 |= START;
 	while (!(i2c->SR1 & I2C_SB_FLAG));
 
@@ -103,26 +126,44 @@ void i2c_reg_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, u
 	}
 
 	while(!(i2c->SR1 & I2C_TXE_FLAG));
+	while(!(i2c->SR1 & I2C_BTF_FLAG));
 
 	/* Restart, prepare a read */
+	i2c->CR1 |= I2C_SET_ACK;
 	i2c->CR1 |= START;
 	while (!(i2c->SR1 & I2C_SB_FLAG));
 
 	i2c->DR = (uint32_t) ((addr << 1) | 1);
-	while (!(i2c->SR1 & I2C_ADDR_RX)); /* Send and wait for addr to be received */
+	i2c->CR1 &= ~I2C_SET_ACK;
 
-	(void)i2c->SR1;
-	(void)i2c->SR2; /* Read both SR registers to set to 0 */
+	if (rx_bytes == 2) {
+		i2c->CR1 |= I2C_SET_POS;
+		while(!(i2c->SR1 & I2C_ADDR_RX));
 
-	if (rx_bytes == 1) {
-		i2c->CR1 &= ~(I2C_SET_ACK);	
+		(void)i2c->SR1;
+		(void)i2c->SR2; /* Read SR registers to set to 0 */
+
+		while(!(i2c->SR1 & I2C_BTF_FLAG));
+		i2c->CR1 |= STOP;
+
+		*rx_buf = (uint8_t) i2c->DR;
+		rx_buf++;
+		*rx_buf = (uint8_t) i2c->DR;
+	}
+
+	else if (rx_bytes == 1) {
+		while(!(i2c->SR1 & I2C_ADDR_RX));
+
+		(void)i2c->SR1;
+		(void)i2c->SR2;
+
+		i2c->CR1 |= STOP;
 
 		while(i2c->SR1 & I2C_RXNE_FLAG);
 		*rx_buf = (uint8_t) i2c->DR;
 	}
-	/* We're just gonna handle 1 byte reception case for now */
 
-	i2c->CR1 |= STOP;
+
 }
 
 
@@ -133,3 +174,5 @@ void i2c1_init(void) {
 
 	i2c_init(i2c1, i2c1_pins, i2c1_port);
 }
+
+

@@ -16,7 +16,7 @@
 /* CR1 Registers */
 #define I2C_CR1_SWRST (BIT(15))
 #define ALERT (BIT(13))
-#define POS (BIT(11))
+#define I2C_SET_POS (BIT(11))
 #define I2C_SET_ACK (BIT(10))
 #define STOP (BIT(9))
 #define START (BIT(8))
