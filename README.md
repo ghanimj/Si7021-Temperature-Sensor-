@@ -1,5 +1,7 @@
 # Si7021
 Communicating with Si7021 Temperature Sensor using i2C through STM32F411RE.
+This project is built on top of the Bare Metal Programming Guide for STM32
+(https://github.com/cpq/bare-metal-programming-guide)
 
 by Ghanim
 ghanimj@hotmail.com
