@@ -6,7 +6,7 @@ LDFLAGS ?= -Tlink.ld -nostartfiles -nostdlib --specs nano.specs -lc -lgcc -Wl,--
 SOURCES = main.c rcc.c startup.c uart.c i2c.c si7021.c syscalls.c
 HEADER = rcc.h hal.h uart.h i2c.h si7021.h
 
-build: firmware.elf
+build: firmware.elf firmware.bin
 
 flash: firmware.bin
 	st-flash --reset write $< 0x8000000

@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <uart.h>
+#include <rcc.h>
 #include <hal.h>
 
 struct uart* uart2 = UART2;
@@ -13,11 +14,15 @@ void uart_init(struct uart* uart, unsigned long baud, uint32_t uart_pins, uint8_
 	if (uart == UART2) RCC->APB1ENR |= BIT(17);
 
 	gpio_set_mode(pins, GPIO_MODE_AF, port);
+	gpio_set_pull(pins, PULL_UP, port);
 	gpio_set_af(pins, af, port);
 
+
+	uart->CR1 &= ~BIT(13);
 	uart->CR1 = 0;
 	uart->BRR = CLK_FREQ / baud;
-	uart->CR1 = BIT(13) | BIT(2) | BIT(3);
+	uart->CR1 = BIT(2) | BIT(3);
+	uart->CR1 |= BIT(13);
 }
 
 int uart_read_ready(struct uart *uart) {
@@ -28,13 +33,9 @@ uint8_t uart_read_byte(struct uart *uart) {
 	return (uint8_t) (uart->DR & 255);
 }
 
-static inline void spin(uint32_t delay) {
-	while(delay--) (void) 0;
-}
-
 void uart_write_byte(struct uart *uart, uint8_t byte) {
 	uart->DR = byte;
-	while ((uart->SR & BIT(7)) == 0) spin(1);
+	while ((uart->SR & BIT(7)) == 0);
 }
 
 void uart_write_buf(struct uart *uart, char *buf, size_t len) {
@@ -46,11 +47,4 @@ void uart2_init(void) {
 	uint8_t uart2_port = UART2_PORT;
 
 	uart_init(uart2, 9600, uart2_pins, uart2_port);
-}
-
-void print_stop(void) {
-	static char* msg = "stop\r\n";
-	static size_t msg_len = 6;
-
-	uart_write_buf(uart2, msg, msg_len);
 }

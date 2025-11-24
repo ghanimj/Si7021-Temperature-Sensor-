@@ -17,11 +17,17 @@
 #define PIN_NUM(pin) (1U << (pin))
 #define PINBANK(pin) (pin >> 8)
 #define BANK(port) ((port) - 'A')
-#define MASK 0x3U
 
 #define GPIO_PIN_SET 1
 #define GPIO_PIN_RESET 0
 #define GPIO_MODE_AF_OD (GPIO_MODE_AF | 0x40)
+
+#define SCB ((struct scb*) (0xE000ED00))
+
+struct scb {
+	volatile uint32_t CPUID, ICSR, VTOR, AIRCR, SCR, CCR, SHPR1, SHPR2,
+		 SHCSR;
+};
 
 struct gpio {
 	volatile uint32_t MODER, OTYPER, OSPEEDR, PUPDR, IDR, ODR, BSRR, LCKR,
@@ -30,25 +36,26 @@ struct gpio {
 
 enum { GPIO_MODE_INPUT, GPIO_MODE_OUTPUT, GPIO_MODE_AF, GPIO_MODE_ANALOG };
 enum { LOW_SPEED, MED_SPEED, FAST_SPEED, HIGH_SPEED };
+enum { NO_PULL, PULL_UP, PULL_DOWN };
 
 static inline void gpio_set_mode(uint32_t pin, uint8_t MODE, uint8_t port) {
 	struct gpio *gpio = GPIO(BANK(port));
 	RCC->AHB1ENR |= BIT(BANK(port));
-	uint32_t pin_pos = 0x00;
+	uint32_t pin_pos = 0x00U;
 	uint32_t bit_pos;
 
 
-	while ((pin >> pin_pos) != 0x00) {
-		bit_pos = 0x01 << pin_pos;
+	while ((pin >> pin_pos) != 0x00U) {
+		bit_pos = 0x01U << pin_pos;
 		uint32_t curr_pin = pin & bit_pos;
 
 		if (curr_pin) {
-			if (MODE & 0x40) {
+			if (MODE & 0x40U) {
 				gpio->OTYPER |= (1U << pin_pos);
 			}
 
-			gpio->MODER &= ~(3U << (pin_pos * 2));
-			gpio->MODER |= (MODE & 3U) << (pin_pos * 2);
+			gpio->MODER &= ~(3U << (pin_pos * 2U));
+			gpio->MODER |= (MODE & 3U) << (pin_pos * 2U);
 		}
 		pin_pos++;
 	}	
@@ -56,11 +63,11 @@ static inline void gpio_set_mode(uint32_t pin, uint8_t MODE, uint8_t port) {
 
 static inline void gpio_set_speed(uint32_t pin, uint8_t speed, uint8_t port) {
 	struct gpio *gpio = GPIO(BANK(port));
-	uint32_t pin_pos = 0x00;
+	uint32_t pin_pos = 0x00U;
 	uint32_t bit_pos;
 
-	while ((pin >> pin_pos) != 0x00) {
-		bit_pos = 0x01 << pin_pos;
+	while ((pin >> pin_pos) != 0x00U) {
+		bit_pos = 0x01U << pin_pos;
 		uint32_t curr_pin = pin & bit_pos;
 
 		if (curr_pin) {
@@ -71,13 +78,30 @@ static inline void gpio_set_speed(uint32_t pin, uint8_t speed, uint8_t port) {
 	}
 }
 
-static inline void gpio_write_pin(uint32_t pin, uint8_t val, uint8_t port) {
+static inline void gpio_set_pull(uint32_t pin, uint8_t type, uint8_t port) {
 	struct gpio *gpio = GPIO(BANK(port));
-	uint32_t pin_pos = 0x00;
+	uint32_t pin_pos = 0x00U;
 	uint32_t bit_pos;
 
-	while ((pin >> pin_pos) != 0x00) {
-		bit_pos = 0x01 << pin_pos;
+	while ((pin >> pin_pos) != 0x00U) {
+		bit_pos = 0x01U << pin_pos;
+		uint32_t curr_pin = pin & bit_pos;
+
+		if (curr_pin) {
+			gpio->PUPDR &= ~(3U << (pin_pos * 2));
+			gpio->PUPDR |= ((type & 3U) << (pin_pos * 2));
+		}
+		pin_pos++;
+	}
+}
+
+static inline void gpio_write_pin(uint32_t pin, uint8_t val, uint8_t port) {
+	struct gpio *gpio = GPIO(BANK(port));
+	uint32_t pin_pos = 0x00U;
+	uint32_t bit_pos;
+
+	while ((pin >> pin_pos) != 0x00U) {
+		bit_pos = 0x01U << pin_pos;
 		uint32_t curr_pin = pin & bit_pos;
 
 		if (curr_pin) {
@@ -96,7 +120,7 @@ static inline uint32_t gpio_read_pin(uint8_t port, uint32_t pin) {
 
 static inline void gpio_set_af(uint32_t pin, uint8_t af_num, uint8_t port) {
 	struct gpio *gpio = GPIO(BANK(port));
-	uint32_t pin_pos = 0x00;
+	uint32_t pin_pos = 0x00U;
 	uint32_t bit_pos;
 
 	/* 00000000 00000111 
@@ -104,8 +128,8 @@ static inline void gpio_set_af(uint32_t pin, uint8_t af_num, uint8_t port) {
 	 * * 4 = 28 = 00011100
 	 */
 
-	while ((pin >> pin_pos) != 0x00) {
-		bit_pos = 0x01 << pin_pos;
+	while ((pin >> pin_pos) != 0x00U) {
+		bit_pos = 0x01U << pin_pos;
 		uint32_t curr_pin = pin & bit_pos;
 
 		if (curr_pin) {
@@ -115,5 +139,13 @@ static inline void gpio_set_af(uint32_t pin, uint8_t af_num, uint8_t port) {
 		pin_pos++;
 	}
 }
+static inline void disable_irq(void) {
+	__asm volatile ("cpsid i" : : : "memory");
+}
+
+static inline void enable_irq(void) {
+	__asm volatile ("cpsie i" : : : "memory");
+}
+
 
 #endif
