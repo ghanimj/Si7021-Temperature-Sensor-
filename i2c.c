@@ -116,8 +116,6 @@ void i2c_reg_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, u
 		while(!(i2c->SR1 & I2C_TXE_FLAG));
 		i2c->DR = (uint32_t) *cmd++;
 	}
-
-	while(!(i2c->SR1 & I2C_TXE_FLAG));
 	while(!(i2c->SR1 & I2C_BTF_FLAG));
 
 	/* Restart, prepare a read */
@@ -126,9 +124,26 @@ void i2c_reg_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, u
 	while (!(i2c->SR1 & I2C_SB_FLAG));
 
 	i2c->DR = (uint32_t) ((addr << 1) | 1);
-	i2c->CR1 &= ~I2C_SET_ACK;
 
-	if (rx_bytes == 2) {
+	if (rx_bytes > 2) {
+		while (!(i2c->SR1 & I2C_ADDR_RX));
+		(void)i2c->SR1;
+		(void)i2c->SR2;
+
+		for (size_t i = 0; i < rx_bytes; i++) {
+			if (i == rx_bytes - 3) {
+				while (!(i2c->SR1 & I2C_BTF_FLAG));
+				i2c->CR1 &= ~I2C_SET_ACK;
+			}
+			if (i == rx_bytes - 2) {
+				while (!(i2c->SR1 & I2C_BTF_FLAG));
+				i2c->CR1 |= STOP;
+			}
+			while (!(i2c->SR1 & I2C_RXNE_FLAG));
+			rx_buf[i] = (uint8_t) i2c->DR;
+		}
+	}
+	else if (rx_bytes == 2) {
 		i2c->CR1 |= I2C_SET_POS;
 		while(!(i2c->SR1 & I2C_ADDR_RX));
 
@@ -141,7 +156,6 @@ void i2c_reg_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, u
 		rx_buf[0] = (uint8_t) i2c->DR;
 		rx_buf[1] = (uint8_t) i2c->DR;
 	}
-
 	else if (rx_bytes == 1) {
 		while(!(i2c->SR1 & I2C_ADDR_RX));
 
@@ -150,11 +164,9 @@ void i2c_reg_read(struct i2c* i2c, uint8_t addr, uint8_t* cmd, size_t cmd_len, u
 
 		i2c->CR1 |= STOP;
 
-		while(i2c->SR1 & I2C_RXNE_FLAG);
+		while(!(i2c->SR1 & I2C_RXNE_FLAG));
 		*rx_buf = (uint8_t) i2c->DR;
 	}
-
-
 }
 
 
